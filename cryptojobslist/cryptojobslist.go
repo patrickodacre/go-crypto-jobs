@@ -8,7 +8,7 @@ import (
 )
 
 type Job struct {
-	Id             string
+	ID             string
 	JobTitle       string
 	JobDescription string
 	CompanyName    string
