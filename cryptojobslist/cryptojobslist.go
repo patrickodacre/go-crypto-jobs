@@ -1,12 +1,10 @@
-package main
+package cryptojobslist
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 
 	"github.com/chromedp/chromedp"
-	"regexp"
 )
 
 type Job struct {
@@ -28,29 +26,26 @@ type PageData struct {
 	}
 }
 
-func scrape() {
+func Scrape() []Job {
 	ctx, cancel := chromedp.NewContext(context.Background())
 	defer cancel()
 
-	jobs := []map[string]string{}
+	scrapedJobs := []map[string]string{}
+	jobs := []Job{}
 
 	if err := chromedp.Run(ctx,
 		chromedp.Navigate("https://cryptojobslist.com/blockchain-developer-jobs"),
-		chromedp.AttributesAll(`a.jobTitle`, &jobs),
+		chromedp.AttributesAll(`a.jobTitle`, &scrapedJobs),
 	); err != nil {
 		panic(err)
 	}
 
-	finalJobsList := []Job{}
-
-	for _, job := range jobs {
+	for _, job := range scrapedJobs {
 
 		content := ""
-		url := job["href"]
 
-		fmt.Println("Getting url", url)
 		if err := chromedp.Run(ctx,
-			chromedp.Navigate("https://cryptojobslist.com"+url),
+			chromedp.Navigate("https://cryptojobslist.com"+job["href"]),
 			// actual page content is in a JSON string.
 			// this page is probably rendered with React.
 			chromedp.InnerHTML("#__NEXT_DATA__", &content, chromedp.ByID),
@@ -61,15 +56,8 @@ func scrape() {
 		var data PageData
 		json.Unmarshal([]byte(content), &data)
 
-		re := regexp.MustCompile(`(?i)javascript`)
-
-		if re.MatchString(data.Props.PageProps.Job.JobDescription) || re.MatchString(data.Props.PageProps.Job.Skills) {
-			finalJobsList = append(finalJobsList, data.Props.PageProps.Job)
-		}
+		jobs = append(jobs, data.Props.PageProps.Job)
 	}
 
-	for _, j := range finalJobsList {
-		fmt.Println(j.CompanyName)
-	}
-
+	return jobs
 }

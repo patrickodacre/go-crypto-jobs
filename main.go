@@ -1,16 +1,17 @@
 package main
 
 import (
-	// "encoding/json"
+	"encoding/json"
 	"flag"
-	// "fmt"
 	"log"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/go-chi/chi"
 	// "github.com/go-kit/kit/endpoint"
 	// httptransport "github.com/go-kit/kit/transport/http"
+	"github.com/patrickodacre/go-crypto-jobs/cryptojobslist"
 )
 
 func main() {
@@ -23,9 +24,38 @@ func main() {
 
 	r := chi.NewRouter()
 
-	scrape()
+	jobs := cryptojobslist.Scrape()
+
+	log.Println("scraping done")
+
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Hello, World"))
+	})
+
+	r.Get("/crypto-jobs-list", func(w http.ResponseWriter, r *http.Request) {
+
+		filters, hasFilters := r.URL.Query()["filter"]
+
+		if !hasFilters {
+
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(jobs)
+			return
+		}
+
+		// filter jobs
+		filteredJobs := []cryptojobslist.Job{}
+
+		for _, j := range jobs {
+			re := regexp.MustCompile(`(?i)` + filters[0])
+
+			if re.MatchString(j.JobDescription) || re.MatchString(j.Skills) {
+				filteredJobs = append(filteredJobs, j)
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(filteredJobs)
 	})
 
 	srv := &http.Server{
